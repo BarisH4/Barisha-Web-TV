@@ -130,15 +130,24 @@ async function playUrl(url,title='Kanal'){
 }
 
 function parseM3U(text){
-  const lines=text.split(/\\r?\\n/).filter(Boolean);
-  const items=[];
+  // UTF-8 BOM temizle
+  if(text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  const lines = text.split(/
+?
+/).map(s=>s.trim());
+  const items = [];
   for(let i=0;i<lines.length;i++){
-    const L=lines[i];
+    const L = lines[i];
+    if(!L) continue;
     if(L.startsWith('#EXTINF')){
-      const title=L.split(',').pop().trim();
-      const url=lines[i+1];
-      items.push({title,url}); i++;}
-    else if(!L.startsWith('#')){ items.push({title:'Akış',url:L}); }
+      const comma = L.indexOf(',');
+      const title = comma>-1 ? L.slice(comma+1).trim() : 'Kanal';
+      const url = (lines[i+1]||'').trim();
+      if(url && !url.startsWith('#')) items.push({ title, url });
+      i++;
+    } else if(!L.startsWith('#')){
+      items.push({ title:'Akış', url:L });
+    }
   }
   return items;
 }
@@ -152,7 +161,32 @@ function renderList(items){
 }
 
 $('#btnLoadList').onclick=async()=>{
-  try{ const res=await fetch(sanitizeUrl($('#playlistUrl').value)); const txt=await res.text(); const items=parseM3U(txt); renderList(items); status('Liste yüklendi'); }catch(e){status('Liste alınamadı');}
+  const src = $('#playlistUrl').value.trim();
+  if(!src){ alert('Playlist linki gir.'); return; }
+  status('Liste indiriliyor…');
+  try{
+    const url = sanitizeUrl(src);
+    const res = await fetch(url,{cache:'no-store'});
+    const txt = await res.text();
+    if(/<\/?(html|head|body)/i.test(txt)){
+      status('Liste alınamadı');
+      alert('Liste yerine HTML döndü. Linki kontrol et veya Proxy kullan.');
+      return;
+    }
+    const items = parseM3U(txt);
+    if(!items.length){
+      status('Liste boş');
+      console.warn('M3U çözümlemesi başarısız. İlk 200 char:', txt.slice(0,200));
+      alert('Liste çözümlenemedi veya boş görünüyor. Dosyayı kontrol et.');
+      return;
+    }
+    renderList(items);
+    status(`Liste yüklendi (${items.length})`);
+  }catch(e){
+    console.error(e);
+    status('Liste alınamadı');
+    alert('İndirme hatası. CORS/mixed content olabilir. Gerekirse Proxy kullan.');
+  }
 };
 $('#btnPlaySingle').onclick=()=>{ playUrl($('#singleUrl').value); };
 $('#btnPrev').onclick=()=>{ nav(-1); }; $('#btnNext').onclick=()=>{ nav(1); };
@@ -164,6 +198,13 @@ $('#btnReload').onclick=()=>{ if(current.url) playUrl(current.url,current.title)
 
 function nav(step){ const items=[...document.querySelectorAll('.item')]; if(!items.length) return; let idx=items.findIndex(el=>el.classList.contains('active')); idx=(idx+step+items.length)%items.length; items[idx].click(); }
 function setVol(d){ const v=document.querySelector('video,audio'); if(v){v.volume=Math.min(1,Math.max(0,v.volume+d)); status('Ses '+Math.round(v.volume*100));}}
+// Varsayılan playlist kutusunu doldur (hızlı test)
+window.addEventListener('DOMContentLoaded',()=>{
+  const def = 'https://cdn.jsdelivr.net/gh/BarisH4/kanallar/liste.m3u';
+  if(!document.querySelector('#playlistUrl').value){
+    document.querySelector('#playlistUrl').value = def;
+  }
+});
 </script>
 </body>
 </html>
