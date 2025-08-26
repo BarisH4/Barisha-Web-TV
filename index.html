@@ -1,78 +1,223 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-<title>IPTV Player | Barış</title>
-<meta name="theme-color" content="#111827" />
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icons/icon-192.png">
-<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-<style>
-body { margin:0; font-family:sans-serif; background:#0b1220; color:#eee; }
-.app { display:grid; grid-template-columns:320px 1fr; grid-template-rows:auto 1fr auto; gap:10px; height:100vh; }
-header, footer, aside, main { background:#121a2b; border-radius:12px; padding:10px; }
-header { display:flex; align-items:center; gap:10px; }
-header .logo { font-size:24px; }
-aside { display:flex; flex-direction:column; }
-.controls input, .controls button, .controls select { width:100%; margin:4px 0; padding:8px; border-radius:8px; border:1px solid #333; background:#0c1426; color:#eee; }
-.list { flex:1; overflow:auto; }
-.item { display:flex; gap:8px; padding:6px; border-radius:8px; cursor:pointer; }
-.item:hover, .item.active { background:#1f2937; }
-.player-wrap { display:grid; place-items:center; background:#000; height:100%; border-radius:8px; overflow:hidden; }
-video,audio,iframe { width:100%; height:100%; }
-.toolbar { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
-.toolbar button { padding:8px 12px; border-radius:8px; background:#0c1426; color:#eee; border:1px solid #333; cursor:pointer; }
-.toolbar button.primary { background:linear-gradient(135deg,#7c3aed,#14b8a6); border:0; }
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>IPTV Player | Barış</title>
+  <meta name="theme-color" content="#111827" />
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <style>
+    body { margin:0; font-family:sans-serif; background:#0b1220; color:#eee; }
+    .app { display:grid; grid-template-columns:320px 1fr; grid-template-rows:auto 1fr auto; gap:10px; height:100vh; }
+    header, footer, aside, main { background:#121a2b; border-radius:12px; padding:10px; }
+    header { display:flex; align-items:center; gap:10px; }
+    header .logo { font-size:24px; }
+    aside { display:flex; flex-direction:column; }
+    .controls input, .controls button, .controls select { width:100%; margin:4px 0; padding:8px; border-radius:8px; border:1px solid #333; background:#0c1426; color:#eee; }
+    .list { flex:1; overflow:auto; }
+    .item { display:flex; gap:8px; padding:6px; border-radius:8px; cursor:pointer; }
+    .item:hover, .item.active { background:#1f2937; }
+    .player-wrap { display:grid; place-items:center; background:#000; height:100%; border-radius:8px; overflow:hidden; }
+    video,audio,iframe { width:100%; height:100%; }
+    .toolbar { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+    .toolbar button { padding:8px 12px; border-radius:8px; background:#0c1426; color:#eee; border:1px solid #333; cursor:pointer; }
+    .toolbar button.primary { background:linear-gradient(135deg,#7c3aed,#14b8a6); border:0; }
+  </style>
 </head>
 <body>
 <div class="app">
-<header>
-<div class="logo">▶</div>
-<h1>Barış IPTV</h1>
-<div style="margin-left:auto" id="status">Hazır</div>
-</header>
-<aside>
-<div class="controls">
-<input id="playlistUrl" placeholder="M3U / jsDelivr linki" />
-<button id="btnLoadList">Listeyi Yükle</button>
-<input id="singleUrl" placeholder="Tek medya linki" />
-<button id="btnPlaySingle">Tek Link Oynat</button>
-<select id="renderMode">
-<option value="auto">Oynatma: Otomatik</option>
-<option value="native">HLS Yerel</option>
-<option value="hlsjs">HLS.js</option>
-<option value="iframe">Iframe</option>
-</select>
-<input id="search" placeholder="Ara..." />
+  <header>
+    <div class="logo">▶</div>
+    <h1>Barış IPTV</h1>
+    <div style="margin-left:auto" id="status">Hazır</div>
+  </header>
+  <aside>
+    <div class="controls">
+      <input id="playlistUrl" placeholder="M3U / jsDelivr linki" />
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+        <button id="btnLoadList">Linkten Yükle</button>
+        <button id="btnLoadDefault">Varsayılan Liste</button>
+      </div>
+      <input type="file" id="playlistFile" accept=".m3u,.m3u8,.txt" />
+      <button id="btnLoadFile">Dosyadan Yükle</button>
+      <input id="singleUrl" placeholder="Tek medya linki" />
+      <button id="btnPlaySingle">Tek Link Oynat</button>
+      <select id="renderMode">
+        <option value="auto">Oynatma: Otomatik</option>
+        <option value="native">HLS Yerel</option>
+        <option value="hlsjs">HLS.js</option>
+        <option value="iframe">Iframe</option>
+      </select>
+      <input id="search" placeholder="Ara..." placeholder="Ara..." />
+    </div>
+    <div class="list" id="list"></div>
+  </aside>
+  <main>
+    <div class="player-wrap">
+      <div id="stage"></div>
+    </div>
+    <div class="toolbar">
+      <button id="btnShowList">Kanalları Göster</button>
+      <button id="btnPrev">⟨ Önceki</button>
+      <button id="btnNext">Sonraki ⟩</button>
+      <button id="btnVolDown">Ses −</button>
+      <button id="btnVolUp">Ses +</button>
+      <button id="btnFullscreen">Tam Ekran</button>
+      <button id="btnOpenExtern" class="primary">Dışarıda Aç</button>
+      <button id="btnReload">Yeniden Yükle</button>
+      <span id="nowTitle" style="margin-left:auto"></span>
+    </div>
+  </main>
+  <footer>© 2025 Barış IPTV</footer>
 </div>
-<div class="list" id="list"></div>
-</aside>
-<main>
-<div class="player-wrap">
-<div id="stage"></div>
-</div>
-<div class="toolbar">
-<button id="btnShowList">Kanalları Göster</button>
-<button id="btnPrev">⟨ Önceki</button>
-<button id="btnNext">Sonraki ⟩</button>
-<button id="btnVolDown">Ses −</button>
-<button id="btnVolUp">Ses +</button>
-<button id="btnFullscreen">Tam Ekran</button>
-<button id="btnOpenExtern" class="primary">Dışarıda Aç</button>
-<button id="btnReload">Yeniden Yükle</button>
-<span id="nowTitle" style="margin-left:auto"></span>
-</div>
-</main>
-<footer>© 2025 Barış IPTV</footer>
-</div>
-
 
 <script>
 const $ = s=>document.querySelector(s);
 const status=t=>$('#status').textContent=t;
 
-
 function ghRawToJsDelivr(url){
-const m=url.match(/^https?:\/\/raw\.githubusercontent\.com\/([^\/]+)\/([^\/]+)\/(?:refs\/heads\/)?([^\/]+)\/(.+)$/i);
+  const m=url.match(/^https?:\/\/raw\.githubusercontent\.com\/([^\/]+)\/([^\/]+)\/(?:refs\/heads\/)?([^\/]+)\/(.+)$/i);
+  if(!m) return url;
+  return `https://cdn.jsdelivr.net/gh/${m[1]}/${m[2]}@${m[3]}/${m[4]}`;
+}
+
+function sanitizeUrl(u){
+  let out=u.trim();
+  out=ghRawToJsDelivr(out);
+  return out;
+}
+
+function isYouTube(u){ return /youtube\.com|youtu\.be/i.test(u); }
+
+let hls,current={};
+function clearStage(){ if(hls){hls.destroy();hls=null;} $('#stage').innerHTML=''; }
+
+async function playUrl(url,title='Kanal'){
+  clearStage();
+  const u=sanitizeUrl(url);
+  current={url:u,title}; $('#nowTitle').textContent=title;
+  try{
+    if(isYouTube(u)){
+      let link=u;
+      if(/@/.test(u)&&!/live/.test(u)) link+="/live";
+      const iframe=document.createElement('iframe');
+      iframe.src=link.replace('watch?v=','embed/')+"?autoplay=1";
+      iframe.allow="autoplay; encrypted-media; picture-in-picture";
+      iframe.allowFullscreen=true;
+      $('#stage').appendChild(iframe); status('YouTube'); return;
+    }
+    if(/\.mp3|\.m4a|\.ogg/i.test(u)){
+      const a=document.createElement('audio'); a.controls=true;a.autoplay=true; a.src=u; $('#stage').appendChild(a); status('Ses'); return;
+    }
+    if(/\.mp4|\.webm|\.mov/i.test(u)){
+      const v=document.createElement('video'); v.controls=true;v.autoplay=true;v.src=u; $('#stage').appendChild(v); status('Video'); return;
+    }
+    if(/\.m3u8/i.test(u)){
+      const v=document.createElement('video'); v.controls=true;v.autoplay=true; $('#stage').appendChild(v);
+      if(v.canPlayType('application/vnd.apple.mpegURL')){ v.src=u; v.play(); status('HLS native'); }
+      else if(Hls.isSupported()){
+        hls=new Hls(); hls.loadSource(u); hls.attachMedia(v); status('HLS.js'); }
+      else { const iframe=document.createElement('iframe'); iframe.src=u; $('#stage').appendChild(iframe); }
+      return;
+    }
+    const iframe=document.createElement('iframe'); iframe.src=u; $('#stage').appendChild(iframe); status('Iframe');
+  }catch(e){ status('Hata'); console.error(e); }
+}
+
+function parseM3U(text){
+  if(text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  const lines = text.split(/\r?\n/).map(s=>s.trim());
+  const items = [];
+  for(let i=0;i<lines.length;i++){
+    const L = lines[i];
+    if(!L) continue;
+    if(L.startsWith('#EXTINF')){
+      const comma = L.indexOf(',');
+      const title = comma>-1 ? L.slice(comma+1).trim() : 'Kanal';
+      const url = (lines[i+1]||'').trim();
+      if(url && !url.startsWith('#')) items.push({ title, url });
+      i++;
+    } else if(!L.startsWith('#')){
+      items.push({ title:'Akış', url:L });
+    }
+  }
+  return items;
+}
+
+function renderList(items){
+  window.__items = items.slice();
+  $('#list').innerHTML='';
+  items.forEach((it,idx)=>{
+    const d=document.createElement('div'); d.className='item'; d.textContent=it.title; d.tabIndex=0;
+    d.addEventListener('click',()=>{ document.querySelectorAll('.item').forEach(n=>n.classList.remove('active')); d.classList.add('active'); playUrl(it.url,it.title); });
+    $('#list').appendChild(d);
+  });
+  if(items.length){ $('#list').firstChild.click(); }
+});
+    $('#list').appendChild(d);
+  });
+}
+
+$('#btnLoadList').onclick=async()=>{
+  const src = $('#playlistUrl').value.trim();
+  if(!src){ alert('Playlist linki gir.'); return; }
+  await loadFromUrl(src);
+};
+
+$('#btnLoadDefault').onclick=async()=>{
+  await loadFromUrl(DEFAULT_PLAYLIST);
+};
+
+$('#btnLoadFile').onclick=async()=>{
+  const f = $('#playlistFile').files[0];
+  if(!f){ alert('Bir .m3u dosyası seç.'); return; }
+  status('Dosya okunuyor…');
+  const txt = await f.text();
+  const items = parseM3U(txt);
+  if(!items.length){ status('Liste boş'); alert('Dosya boş ya da format hatası.'); return; }
+  renderList(items);
+  status(`Liste yüklendi (dosya, ${items.length})`);
+};
+$('#btnPlaySingle').onclick=()=>{ playUrl($('#singleUrl').value); };
+$('#btnPrev').onclick=()=>{ nav(-1); }; $('#btnNext').onclick=()=>{ nav(1); };
+$('#btnVolDown').onclick=()=>setVol(-0.1); $('#btnVolUp').onclick=()=>setVol(0.1);
+$('#btnShowList').onclick=()=>$('#list').scrollIntoView({behavior:'smooth'});
+$('#btnFullscreen').onclick=()=>{ if(!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); };
+$('#btnOpenExtern').onclick=()=>{ if(current.url) window.open(current.url); };
+$('#btnReload').onclick=()=>{ if(current.url) playUrl(current.url,current.title); };
+
+function nav(step){ const items=[...document.querySelectorAll('.item')]; if(!items.length) return; let idx=items.findIndex(el=>el.classList.contains('active')); idx=(idx+step+items.length)%items.length; items[idx].click(); }
+function setVol(d){ const v=document.querySelector('video,audio'); if(v){v.volume=Math.min(1,Math.max(0,v.volume+d)); status('Ses '+Math.round(v.volume*100));}}
+
+// Varsayılan playlist ve otomatik yükleme
+const DEFAULT_PLAYLIST = 'https://cdn.jsdelivr.net/gh/BarisH4/kanallar@main/liste.m3u';
+
+async function loadFromUrl(src){
+  status('Liste indiriliyor…');
+  try{
+    const url = sanitizeUrl(src);
+    const res = await fetch(url,{cache:'no-store'});
+    const txt = await res.text();
+    if(/<\/?(html|head|body)/i.test(txt)){
+      status('Liste alınamadı');
+      alert('Liste yerine HTML döndü. Linki kontrol et.');
+      return;
+    }
+    const items = parseM3U(txt);
+    if(!items.length){ status('Liste boş'); alert('Liste boş veya hatalı.'); return; }
+    renderList(items);
+    status(`Liste yüklendi (${items.length})`);
+  }catch(e){ console.error(e); status('Liste alınamadı'); alert('İndirme hatası'); }
+}
+
+window.addEventListener('DOMContentLoaded', async ()=>{
+  if(!document.querySelector('#playlistUrl').value){
+    document.querySelector('#playlistUrl').value = DEFAULT_PLAYLIST;
+  }
+  await loadFromUrl(DEFAULT_PLAYLIST);
+});
+</script>
+</body>
+</html>
